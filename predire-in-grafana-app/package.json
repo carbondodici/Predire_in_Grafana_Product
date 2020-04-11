@@ -1,0 +1,25 @@
+{
+  "name": "predire-in-grafana-app",
+  "private": false,
+  "version": "0.0.1",
+  "description": "Carbon12 plug-in di predizione",
+  "scripts": {
+    "build": "grafana-toolkit plugin:build",
+    "test": "grafana-toolkit plugin:test",
+    "coverage": "grafana-toolkit plugin:test --coverage",
+    "dev": "grafana-toolkit plugin:dev",
+    "watch": "grafana-toolkit plugin:dev --watch"
+  },
+  "author": "Carbon12",
+  "license": "Apache-2.0",
+  "repository": "https://github.com/CarbonDodici/Predire_in_Grafana",
+  "dependencies": {
+    "@babel/preset-env": "^7.9.0",
+    "@grafana/toolkit": "^6.7.1",
+    "could-be-utils": "^0.2.4",
+    "eslint-config-airbnb-base": "^14.1.0",
+    "eslint-plugin-header": "^3.0.0",
+    "eslint-plugin-import": "^2.20.2",
+    "jquery": "^3.5.0"
+  }
+}

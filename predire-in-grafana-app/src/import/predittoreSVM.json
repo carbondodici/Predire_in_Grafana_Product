@@ -1,0 +1,28 @@
+{
+    "header": {
+        "title": "Carbon12 Predire in Grafana",
+        "plugin_version": "b.3.0",
+        "train_version": "b.3.0"
+    },
+    "data_entry": {
+        "source0": "Value",
+        "source1": "Value2"
+    },
+    "model": "SVM",
+    "file_version": 0,
+    "notes": "Predittore allenato con due win_cpu, parametro Percent_User_Time",
+    "configuration": {
+        "_parametroN": "numero di dati inseriti",
+        "N": 26,
+        "_parametroD": "numero di sorgenti analizzate",
+        "D": 2,
+        "_parametroB": "bias: coefficiente additivo del calcolo della SVM",
+        "b": -7.830188679245287,
+        "kernelType": "linear",
+        "_parametroW": "weights: coefficienti moltiplicativi del calcolo della SVM",
+        "w": [
+            -0.2543501622433154,
+            -0.0726714749266616
+        ]
+    }
+}
