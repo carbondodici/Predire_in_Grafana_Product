@@ -4,13 +4,29 @@
  *
  * @file Classe Adapter per la libreria SVM
  * @author Carbon12 <carbon.dodici@gmail.com>
- * @version X.Y.Z
+ * @version 1.4.0
  *
  * Changelog: creazione classe
  */
 
-const Model = require('./model');
-const SVM = require('./svm/svm');
+/**
+ * fromJSON
+ * @param  {JSON} json
+ * stringa JSON con la configurazione salvata per la creazione del modello
+ */
+
+/**
+ * train
+ * @param {Array} data
+ * array N*D con i dati di addestramento: N #tuple, D #sorgenti
+ * @param {Array} expected
+ * array[N] con i valori attesi o classificazione dei dati per l'addestramento
+ * @return {JSON} config
+ * stringa JSON con la configurazione salvata del modello da usare per predire
+ */
+
+const Model = require('./model').model;
+const SVM = require('./svm/svm').svm;
 
 class SvmAdapter extends Model {
     constructor() {
@@ -32,4 +48,4 @@ class SvmAdapter extends Model {
     }
 }
 
-module.exports = SvmAdapter;
+module.exports.svmadapter = SvmAdapter;

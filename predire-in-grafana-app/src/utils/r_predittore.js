@@ -1,10 +1,10 @@
 /**
- * File name: r_redittore.js
+ * File name: r_predittore.js
  * Date: 2020-03-23
  *
- * @file classe per la lettura e scrittura del JSON con il predittore
+ * @file Classe per la lettura del JSON del predittore
  * @author Carbon12 <carbon.dodici@gmail.com>
- * @version X.Y.Z
+ * @version 1.4.0
  *
  * Changelog: modificato costruttore
  */
@@ -25,6 +25,10 @@ const arrayOfKeys = ['header', 'notes', 'data_entry', 'model', 'file_version', '
  * var campo = manage_predittore.getCampo();
  */
 export default class RPredittore {
+    /**
+     * Costruisce l'oggetto per lettura del JSON del predittore
+     * @param {data} Object rappresenta il contenuto del JSON
+     */
     constructor(data) {
         this.sources = [];
         this.jsonContent = data !== null ? data : {};
@@ -37,19 +41,29 @@ export default class RPredittore {
      * @return {boolean}
      */
     checkVersion(pluginV, trainV) {
-        let cpV = pluginV;
-        let ctV = trainV;
-        for (let i = 0; i < 2; i++) {
-            cpV = cpV.replace('.', '');
-            ctV = ctV.replace('.', '');
-        }
-        let pV = this.getPluginVersion();
-        let tV = this.getTrainVersion();
-        for (let i = 0; i < 2; i++) {
-            pV = pV.replace('.', '');
-            tV = tV.replace('.', '');
-        }
+        const cpV = this.versionToInt(pluginV);
+        const ctV = this.versionToInt(trainV);
+        const pV = this.versionToInt(this.getPluginVersion());
+        const tV = this.versionToInt(this.getTrainVersion());
         return parseInt(pV) <= parseInt(cpV) && parseInt(tV) <= parseInt(ctV);
+    }
+
+    /**
+     * Converte una stringa che rappresenta una versione in int
+     * @param strVersion stringa che rappresenta la versione
+     * @return {int}
+     */
+    // eslint-disable-next-line class-methods-use-this
+    versionToInt(strVersion) {
+        let res = strVersion.replace('.', '');
+        res = strVersion.replace('.', '');
+        res = res.replace('a', '0');
+        res = res.replace('b', '1');
+        res = parseInt(res);
+        if (Number.isNaN(res)) {
+            console.log('Wrong version inside json.');
+        }
+        return res;
     }
 
     /**
@@ -66,30 +80,21 @@ export default class RPredittore {
      * @return {string} title nell'header del predittore
      */
     getTitle() {
-        if (this.jsonContent.header.title) {
-            return this.jsonContent.header.title;
-        }
-        return '';
+        return this.jsonContent.header.title;
     }
 
     /**
      * @return {string} plug-in version nell'header del predittore
      */
     getPluginVersion() {
-        if (this.jsonContent.header.plugin_version) {
-            return this.jsonContent.header.plugin_version;
-        }
-        return '';
+        return this.jsonContent.header.plugin_version;
     }
 
     /**
      * @return {string} train version nell'header del predittore
      */
     getTrainVersion() {
-        if (this.jsonContent.header.train_version) {
-            return this.jsonContent.header.train_version;
-        }
-        return '';
+        return this.jsonContent.header.train_version;
     }
 
     /**
@@ -104,11 +109,9 @@ export default class RPredittore {
         if (this.jsonContent.data_entry) {
             this.sources = [];
             const dataEntry = this.jsonContent.data_entry;
-            for (const source in dataEntry) {
-                if ({}.hasOwnProperty.call(dataEntry, source)) {
-                    this.sources.push(dataEntry[source]);
-                }
-            }
+            Object.keys(dataEntry).forEach((key) => {
+                this.sources.push(dataEntry[key]);
+            });
         }
         return this.sources;
     }
@@ -117,10 +120,7 @@ export default class RPredittore {
      * @return {string} modello utilizzato per l'allenamento
      */
     getModel() {
-        if (this.jsonContent.model) {
-            return this.jsonContent.model;
-        }
-        return '';
+        return this.jsonContent.model;
     }
 
     /**
@@ -138,10 +138,7 @@ export default class RPredittore {
      * stringa contenente node sull'allenamento
      */
     getNotes() {
-        if (this.jsonContent.notes) {
-            return this.jsonContent.notes;
-        }
-        return '';
+        return this.jsonContent.notes;
     }
 
     /**
@@ -149,9 +146,6 @@ export default class RPredittore {
      * stringa JSON con la configurazione salvata per la creazione del modello
      */
     getConfiguration() {
-        if (this.jsonContent.configuration) {
-            return this.jsonContent.configuration;
-        }
-        return '';
+        return this.jsonContent.configuration;
     }
 }

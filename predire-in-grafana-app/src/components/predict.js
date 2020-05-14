@@ -1,44 +1,41 @@
 /**
  * File name: predict.js
- * Date: 2020-03-18
+ * Date: 2020-05-06
  *
- * @file Script principale del programma di addestramento
+ * @file Classe per gestione della pagina di predizione
  * @author Carbon12 <carbon.dodici@gmail.com>
- * @version X.Y.Z
+ * @version 1.4.0
  *
- * Changelog: modifiche effettuate
+ * Changelog: modificato metodo resetButtonsState(String)
  */
 
+// eslint-disable-next-line import/no-unresolved
 import { appEvents } from 'grafana/app/core/core';
-import { InfinitySwag } from '../utils/infinitySwag';
-import GrafanaApiQuery from '../utils/grafana_query.js';
+import predictLooper from '../utils/predictLooper';
+import GrafanaApiQuery from '../utils/grafana_query';
+import Dashboard from '../utils/dashboard';
 
 export default class predictCtrl {
     /** @ngInject */
-    constructor($location, backendSrv) {
+
+    /**
+     * Costruisce l'oggetto che rappresenta la pagina per gestione della predizione
+     * @param {$location} Object permette la gestione dell'URL della pagina
+     * @param {$scope} Object gestisce la comunicazione tra controller e view
+     * @param {backendSrv} Object rappresenta il backend di Grafana
+     */
+    constructor($location, $scope, backendSrv) {
         this.$location = $location;
+        this.$scope = $scope;
         this.backendSrv = backendSrv;
-        this.time = '';
-        this.timeUnit = 'secondi';
-        this.grafana = new GrafanaApiQuery(this.backendSrv);
-        this.init();
-
-        // localStorage will be cleared on tab close
-        window.addEventListener('unload', function () {
-            localStorage.removeItem('started');
-        });
-    }
-
-    init() {
-        if (window.localStorage.getItem('started') === undefined) {
-            this.started = false;
-            window.localStorage.setItem('started', 'no');
-        } else {
-            this.started = window.localStorage.getItem('started') === 'yes';
-        }
+        this.grafana = new GrafanaApiQuery(backendSrv);
+        this.toRemove = -1;
         this.verifyDashboard();
     }
 
+    /**
+     * Controlla lo stato della dashboard
+     */
     verifyDashboard() {
         this.grafana
             .getFolder('0')
@@ -54,55 +51,133 @@ export default class predictCtrl {
                     this.grafana
                         .getDashboard('predire-in-grafana')
                         .then((db) => {
-                            this.dashboardEmpty = !db.dashboard.panels.length;
+                            this.dashboard = new Dashboard(db.dashboard);
+                            if (this.dashboard.updateSettings()) {
+                                this.grafana
+                                    .postDashboard(this.dashboard.getJSON())
+                                    .then(() => {
+                                        this.$scope.$evalAsync();
+                                    });
+                            }
+                            this.dashboardEmpty = !this.dashboard.getJSON().panels.length;
+                            if (!this.dashboardEmpty) {
+                                predictLooper.setBackendSrv(this.$scope, this.backendSrv);
+                                this.getPanelsState();
+                            }
+                            this.$scope.$evalAsync();
                         });
                 }
+                this.$scope.$evalAsync();
             });
     }
 
-    timeToMilliseconds() {
-        if (this.time) {
-            try {
-                parseFloat(this.time);
-            } catch (err) {
+    /**
+     * Acquisisce lo stato della previsione dei pannelli presenti nella dashboard
+     */
+    getPanelsState() {
+        this.started = [];
+        this.time = [];
+        this.timeUnit = [];
+        this.panelsList = [];
+        for (let i = 0; i < this.dashboard.getJSON().panels.length; ++i) {
+            this.time.push('1');
+            this.timeUnit.push('secondi');
+
+            if (JSON.parse(this.dashboard.getJSON().templating.list[i].query).started !== 'no') {
+                this.started[i] = true;
+                const state = JSON.parse(this.dashboard.getJSON().templating.list[i].query).started;
+                this.time[i] = state.substr(0, state.length - 1);
+                this.timeUnit[i] = state[state.length - 1] === 's' ? 'secondi' : 'minuti';
+                predictLooper.startPrediction(i, this.timeToMilliseconds(i));
+            } else {
+                this.started[i] = false;
+                predictLooper.stopPrediction(i);
+            }
+            this.panelsList.push(this.dashboard.getJSON().panels[i].title);
+        }
+    }
+
+    /**
+     * Ritorna la frequenza di predizione convertita in millisecondi
+     * @param {index} Number rappresenta l'indice del pannello sul quale applicare la conversione della frequenza
+     * @returns {Number} rappresenta la conversione della frequenza di predizione del pannello richiesto
+     */
+    timeToMilliseconds(index) {
+        if (this.time[index]) {
+            if (Number.isNaN(parseFloat(this.time[index]))) {
                 return 0.0;
             }
-            if (this.timeUnit === 'secondi') {
-                return parseFloat(this.time) * 1000;
+            if (this.timeUnit[index] === 'secondi') {
+                return parseFloat(this.time[index]) * 1000;
             }
-            return parseFloat(this.time) * 60000;
+            return parseFloat(this.time[index]) * 60000;
         }
         return 0.0;
     }
 
-    startPrediction() {
-        const refreshTime = this.timeToMilliseconds();
-        if (!this.dashboardExists) {
-            appEvents.emit('alert-error', ['Dashboard non trovata', '']);
-        } else if (this.dashboardEmpty) {
+    /**
+     * Avvia la predizione del pannello richiesto
+     * @param {index} Number rappresenta l'indice del pannello sul quale avviare la predizione
+     */
+    startPrediction(index) {
+        const refreshTime = this.timeToMilliseconds(index);
+        if (this.dashboardEmpty) {
             appEvents.emit('alert-error', ['Dashboard vuota', '']);
         } else if (refreshTime <= 0.0) {
             appEvents.emit('alert-error', ['Frequenza di predizione non supportata', '']);
         } else {
-            this.started = true;
-            window.localStorage.setItem('started', 'yes');
-            if (InfinitySwag.backendSrv === null) {
-                InfinitySwag.setBackendSrv(this.backendSrv);
-            }
-            appEvents.emit('alert-success', ['Predizione avviata', '']);
-            InfinitySwag.startPrediction(refreshTime);
+            this.started[index] = true;
+            this.dashboard.setPredictionStarted(index, this.time[index] + this.timeUnit[index][0]);
+            this.grafana
+                .postDashboard(this.dashboard.getJSON())
+                .then(() => {
+                    appEvents.emit('alert-success', ['Predizione avviata', '']);
+                    predictLooper.startPrediction(index, refreshTime);
+                    this.$scope.$evalAsync();
+                });
         }
     }
 
-    stopPrediction() {
-        this.started = false;
-        window.localStorage.setItem('started', 'no');
-        appEvents.emit('alert-success', ['Predizione terminata', '']);
-        InfinitySwag.stopPrediction();
+    /**
+     * Ferma la predizione del pannello richiesto
+     * @param {index} Number rappresenta l'indice del pannello sul quale fermare la predizione
+     */
+    stopPrediction(index) {
+        this.started[index] = false;
+        this.dashboard.setPredictionStarted(index, 'no');
+        this.grafana
+            .postDashboard(this.dashboard.getJSON())
+            .then(() => {
+                appEvents.emit('alert-success', ['Predizione terminata', '']);
+                predictLooper.stopPrediction(index);
+                this.$scope.$evalAsync();
+            });
     }
 
+    /**
+     * Rimuove il pannello della dashboard relativo all'indice passato
+     * @param {index} Number rappresenta l'indice del pannello della dashboard da rimuovere
+     */
+    removePanel(index) {
+        this.started.forEach((state, i) => {
+            predictLooper.stopPrediction(i);
+        });
+        this.dashboard.removePanel(index);
+        this.grafana
+            .postDashboard(this.dashboard.getJSON())
+            .then(() => {
+                document.getElementById('row' + index).remove();
+                this.verifyDashboard();
+                this.$scope.$evalAsync();
+            });
+    }
+
+    /**
+     * Reindirizza l'URL della pagina corrente
+     */
     redirect() {
-        this.$location.url('/d/carbon12/predire-in-grafana');
+        this.$location.url(this.dashboardExists
+            ? '/d/carbon12/predire-in-grafana' : 'plugins/predire-in-grafana-app/page/import');
     }
 }
 
